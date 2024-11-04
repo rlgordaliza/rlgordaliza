@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios';
+import { generateContent } from '../services/openaiService';
+import { PROCESSING_SCREEN, ERROR_MESSAGES } from '../constants/uiStrings';
 
 const ProcessingScreen = ({ route, navigation }) => {
   const { timestamp } = route.params;
@@ -20,89 +21,39 @@ const ProcessingScreen = ({ route, navigation }) => {
         setRecording(JSON.parse(data));
       }
     } catch (error) {
-      console.error('Error loading recording:', error);
-      Alert.alert('Error', 'Failed to load recording data');
+      console.error('Error al cargar la grabación:', error);
+      Alert.alert('Error', ERROR_MESSAGES.LOAD_ERROR);
     }
   };
 
-  const getOpenAIKey = async () => {
-    try {
-      const apiKey = await AsyncStorage.getItem('openai_api_key');
-      if (!apiKey) {
-        throw new Error('OpenAI API key not found');
-      }
-      return apiKey;
-    } catch (error) {
-      throw new Error('Please configure your OpenAI API key in settings');
-    }
-  };
-
-  const transcribeAudio = async () => {
-    try {
-      setCurrentStep('Transcribing audio...');
-      const apiKey = await getOpenAIKey();
-      
-      // Here you would implement the actual audio transcription using OpenAI's Whisper API
-      // This is a placeholder for the actual implementation
-      const transcription = "Placeholder transcription"; // Replace with actual API call
-      
-      const updatedRecording = {
-        ...recording,
-        transcription
-      };
-      
-      await AsyncStorage.setItem(
-        `recording_${timestamp}`,
-        JSON.stringify(updatedRecording)
-      );
-      
-      setRecording(updatedRecording);
-      return transcription;
-    } catch (error) {
-      console.error('Transcription error:', error);
-      throw error;
-    }
-  };
-
-  const generateContent = async (type) => {
+  const processContent = async (type) => {
     if (processing) return;
     
     setProcessing(true);
     try {
-      let transcription = recording.transcription;
-      if (!transcription) {
-        transcription = await transcribeAudio();
+      if (!recording.transcription) {
+        Alert.alert('Error', 'No se encontró la transcripción del audio');
+        return;
       }
 
-      const apiKey = await getOpenAIKey();
-      let prompt = '';
-      let contentKey = '';
-
+      let stepMessage = '';
       switch (type) {
         case 'summary':
-          setCurrentStep('Generating summary...');
-          prompt = `Please provide a concise summary of the following text:\n\n${transcription}`;
-          contentKey = 'summary';
+          stepMessage = PROCESSING_SCREEN.GENERATING_SUMMARY;
           break;
         case 'minutes':
-          setCurrentStep('Creating meeting minutes...');
-          prompt = `Please create formal meeting minutes from the following transcript:\n\n${transcription}`;
-          contentKey = 'minutes';
+          stepMessage = PROCESSING_SCREEN.CREATING_MINUTES;
           break;
         case 'analysis':
-          setCurrentStep('Performing analysis...');
-          prompt = `Please provide a detailed analysis of the following text:\n\n${transcription}`;
-          contentKey = 'analysis';
+          stepMessage = PROCESSING_SCREEN.PERFORMING_ANALYSIS;
           break;
       }
+      setCurrentStep(stepMessage);
 
-      // Here you would make the actual API call to OpenAI
-      // This is a placeholder for the actual implementation
-      const generatedContent = `Placeholder ${type}`; // Replace with actual API call
-
+      const content = await generateContent(recording.transcription, type);
       const updatedRecording = {
         ...recording,
-        [contentKey]: generatedContent
+        [type]: content
       };
 
       await AsyncStorage.setItem(
@@ -113,7 +64,7 @@ const ProcessingScreen = ({ route, navigation }) => {
       setRecording(updatedRecording);
       navigation.navigate('Detail', { recording: updatedRecording });
     } catch (error) {
-      console.error('Content generation error:', error);
+      console.error('Error en el procesamiento:', error);
       Alert.alert('Error', error.message);
     } finally {
       setProcessing(false);
@@ -123,7 +74,14 @@ const ProcessingScreen = ({ route, navigation }) => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Process Recording</Text>
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={() => navigation.goBack()}
+      >
+        <Text style={styles.backButtonText}>←</Text>
+      </TouchableOpacity>
+
+      <Text style={styles.title}>{PROCESSING_SCREEN.TITLE}</Text>
       
       {processing ? (
         <View style={styles.processingContainer}>
@@ -134,23 +92,23 @@ const ProcessingScreen = ({ route, navigation }) => {
         <View style={styles.optionsContainer}>
           <TouchableOpacity
             style={styles.option}
-            onPress={() => generateContent('summary')}
+            onPress={() => processContent('summary')}
           >
-            <Text style={styles.optionText}>Generate Summary 🟢</Text>
+            <Text style={styles.optionText}>{PROCESSING_SCREEN.OPTIONS.SUMMARY}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.option}
-            onPress={() => generateContent('minutes')}
+            onPress={() => processContent('minutes')}
           >
-            <Text style={styles.optionText}>Create Meeting Minutes 🔵</Text>
+            <Text style={styles.optionText}>{PROCESSING_SCREEN.OPTIONS.MINUTES}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.option}
-            onPress={() => generateContent('analysis')}
+            onPress={() => processContent('analysis')}
           >
-            <Text style={styles.optionText}>Develop Analysis 🟣</Text>
+            <Text style={styles.optionText}>{PROCESSING_SCREEN.OPTIONS.ANALYSIS}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -163,6 +121,13 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
     backgroundColor: '#fff',
+  },
+  backButton: {
+    padding: 10,
+    marginBottom: 10,
+  },
+  backButtonText: {
+    fontSize: 24,
   },
   title: {
     fontSize: 24,

@@ -1,13 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { HOME_SCREEN, RECORDING_BUTTONS } from '../constants/uiStrings';
 
 const HomeScreen = ({ navigation }) => {
   const [recordings, setRecordings] = useState([]);
 
   useEffect(() => {
-    loadRecordings();
-  }, []);
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadRecordings();
+    });
+
+    return unsubscribe;
+  }, [navigation]);
 
   const loadRecordings = async () => {
     try {
@@ -21,54 +26,94 @@ const HomeScreen = ({ navigation }) => {
       );
       setRecordings(loadedRecordings.sort((a, b) => b.timestamp - a.timestamp));
     } catch (error) {
-      console.error('Error loading recordings:', error);
+      console.error('Error al cargar grabaciones:', error);
     }
+  };
+
+  const deleteRecording = async (timestamp) => {
+    Alert.alert(
+      HOME_SCREEN.DELETE_CONFIRMATION,
+      '',
+      [
+        {
+          text: HOME_SCREEN.CANCEL,
+          style: 'cancel'
+        },
+        {
+          text: HOME_SCREEN.DELETE_BUTTON,
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await AsyncStorage.removeItem(`recording_${timestamp}`);
+              Alert.alert(HOME_SCREEN.DELETE_SUCCESS);
+              loadRecordings();
+            } catch (error) {
+              console.error('Error al eliminar:', error);
+              Alert.alert(HOME_SCREEN.DELETE_ERROR);
+            }
+          }
+        }
+      ]
+    );
   };
 
   const renderBadges = (item) => {
     return (
       <View style={styles.badgeContainer}>
-        {item.summary && <Text style={styles.badge}>🟢</Text>}
-        {item.minutes && <Text style={styles.badge}>🔵</Text>}
-        {item.analysis && <Text style={styles.badge}>🟣</Text>}
+        {item.summary && <Text style={styles.badge}>📝</Text>}
+        {item.minutes && <Text style={styles.badge}>📋</Text>}
+        {item.analysis && <Text style={styles.badge}>📊</Text>}
       </View>
     );
   };
 
   const renderItem = ({ item }) => (
-    <TouchableOpacity
-      style={styles.recordingItem}
-      onPress={() => navigation.navigate('Detail', { recording: item })}
-    >
-      <View style={styles.recordingInfo}>
-        <Text style={styles.recordingDate}>
-          {new Date(item.timestamp).toLocaleString()}
-        </Text>
-        {renderBadges(item)}
-      </View>
-    </TouchableOpacity>
+    <View style={styles.recordingItem}>
+      <TouchableOpacity
+        style={styles.recordingContent}
+        onPress={() => navigation.navigate('Detail', { recording: item })}
+      >
+        <View style={styles.recordingInfo}>
+          <Text style={styles.recordingDate}>
+            {new Date(item.timestamp).toLocaleString()}
+          </Text>
+          {renderBadges(item)}
+        </View>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.deleteButton}
+        onPress={() => deleteRecording(item.timestamp)}
+      >
+        <Text style={styles.deleteButtonText}>{RECORDING_BUTTONS.DELETE}</Text>
+      </TouchableOpacity>
+    </View>
   );
 
   return (
     <View style={styles.container}>
-      <FlatList
-        data={recordings}
-        renderItem={renderItem}
-        keyExtractor={(item) => item.timestamp.toString()}
-        style={styles.list}
-      />
+      <Text style={styles.title}>{HOME_SCREEN.TITLE}</Text>
+      {recordings.length === 0 ? (
+        <Text style={styles.noRecordings}>{HOME_SCREEN.NO_RECORDINGS}</Text>
+      ) : (
+        <FlatList
+          data={recordings}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.timestamp.toString()}
+          style={styles.list}
+        />
+      )}
       <View style={styles.buttonContainer}>
         <TouchableOpacity
           style={styles.settingsButton}
           onPress={() => navigation.navigate('Settings')}
         >
-          <Text style={styles.buttonText}>⚙️</Text>
+          <Text style={styles.buttonText}>{RECORDING_BUTTONS.SETTINGS}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.recordButton}
           onPress={() => navigation.navigate('Recording')}
         >
-          <Text style={styles.buttonText}>🎤</Text>
+          <Text style={styles.buttonText}>{RECORDING_BUTTONS.RECORD}</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -80,13 +125,24 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    padding: 20,
+    paddingBottom: 10,
+  },
   list: {
     flex: 1,
   },
   recordingItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: 15,
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
+  },
+  recordingContent: {
+    flex: 1,
   },
   recordingInfo: {
     flexDirection: 'row',
@@ -102,6 +158,12 @@ const styles = StyleSheet.create({
   },
   badge: {
     fontSize: 16,
+  },
+  deleteButton: {
+    padding: 10,
+  },
+  deleteButtonText: {
+    fontSize: 20,
   },
   buttonContainer: {
     flexDirection: 'row',
@@ -132,6 +194,12 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     fontSize: 24,
+  },
+  noRecordings: {
+    textAlign: 'center',
+    fontSize: 16,
+    color: '#666',
+    marginTop: 20,
   },
 });
 

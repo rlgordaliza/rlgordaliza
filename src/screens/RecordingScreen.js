@@ -1,14 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { Audio } from 'expo-av';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios';
+import { transcribeAudio } from '../services/openaiService';
+import { RECORDING_SCREEN, RECORDING_BUTTONS } from '../constants/uiStrings';
 
 const RecordingScreen = ({ navigation }) => {
   const [recording, setRecording] = useState(null);
   const [isRecording, setIsRecording] = useState(false);
   const [duration, setDuration] = useState(0);
   const [timer, setTimer] = useState(null);
+  const [recordingFinished, setRecordingFinished] = useState(false);
+  const [audioUri, setAudioUri] = useState(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -21,7 +25,10 @@ const RecordingScreen = ({ navigation }) => {
     try {
       const permission = await Audio.requestPermissionsAsync();
       if (permission.status !== 'granted') {
-        Alert.alert('Permissions required', 'Audio recording permissions are required');
+        Alert.alert(
+          RECORDING_SCREEN.PERMISSIONS_REQUIRED,
+          RECORDING_SCREEN.PERMISSIONS_MESSAGE
+        );
         return;
       }
 
@@ -37,14 +44,16 @@ const RecordingScreen = ({ navigation }) => {
       setRecording(newRecording);
       setIsRecording(true);
       setDuration(0);
+      setRecordingFinished(false);
+      setAudioUri(null);
       
       const interval = setInterval(() => {
         setDuration(prev => prev + 1);
       }, 1000);
       setTimer(interval);
     } catch (error) {
-      console.error('Failed to start recording:', error);
-      Alert.alert('Error', 'Failed to start recording');
+      console.error('Error al iniciar la grabación:', error);
+      Alert.alert(RECORDING_SCREEN.RECORDING_ERROR, error.message);
     }
   };
 
@@ -58,13 +67,26 @@ const RecordingScreen = ({ navigation }) => {
       setIsRecording(false);
 
       const uri = recording.getURI();
+      setAudioUri(uri);
+      setRecordingFinished(true);
+    } catch (error) {
+      console.error('Error al detener la grabación:', error);
+      Alert.alert(RECORDING_SCREEN.RECORDING_ERROR, error.message);
+    }
+  };
+
+  const saveRecording = async () => {
+    try {
+      setIsProcessing(true);
       const timestamp = Date.now();
-      
-      // Save recording data
+
+      // Primero transcribimos el audio
+      const transcription = await transcribeAudio(audioUri);
+
       const recordingData = {
         timestamp,
-        audioUri: uri,
-        transcription: null,
+        audioUri,
+        transcription,
         summary: null,
         minutes: null,
         analysis: null
@@ -75,11 +97,13 @@ const RecordingScreen = ({ navigation }) => {
         JSON.stringify(recordingData)
       );
 
-      // Navigate to processing screen
+      Alert.alert(RECORDING_SCREEN.SAVE_SUCCESS);
       navigation.replace('Processing', { timestamp });
     } catch (error) {
-      console.error('Failed to stop recording:', error);
-      Alert.alert('Error', 'Failed to stop recording');
+      console.error('Error al guardar la grabación:', error);
+      Alert.alert(RECORDING_SCREEN.SAVE_ERROR, error.message);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -91,6 +115,13 @@ const RecordingScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={() => navigation.goBack()}
+      >
+        <Text style={styles.backButtonText}>←</Text>
+      </TouchableOpacity>
+
       <View style={styles.timerContainer}>
         <Text style={styles.timer}>{formatTime(duration)}</Text>
       </View>
@@ -99,12 +130,44 @@ const RecordingScreen = ({ navigation }) => {
         style={[styles.recordButton, isRecording && styles.recordingButton]}
         onPress={isRecording ? stopRecording : startRecording}
       >
-        <View style={[styles.recordButtonInner, isRecording && styles.recordingButtonInner]} />
+        <Text style={styles.buttonIcon}>
+          {isRecording ? RECORDING_BUTTONS.STOP : RECORDING_BUTTONS.START}
+        </Text>
       </TouchableOpacity>
       
       <Text style={styles.instructions}>
-        {isRecording ? 'Tap to stop recording' : 'Tap to start recording'}
+        {isRecording ? RECORDING_SCREEN.STOP_RECORDING : RECORDING_SCREEN.START_RECORDING}
       </Text>
+
+      {recordingFinished && (
+        <View style={styles.actionButtons}>
+          {isProcessing ? (
+            <View style={styles.processingContainer}>
+              <ActivityIndicator size="large" color="#4CAF50" />
+              <Text style={styles.processingText}>Transcribiendo audio...</Text>
+            </View>
+          ) : (
+            <>
+              <TouchableOpacity
+                style={[styles.actionButton, styles.saveButton]}
+                onPress={saveRecording}
+              >
+                <Text style={styles.actionButtonText}>
+                  {RECORDING_SCREEN.SAVE_RECORDING}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.actionButton, styles.discardButton]}
+                onPress={() => navigation.goBack()}
+              >
+                <Text style={styles.actionButtonText}>
+                  {RECORDING_SCREEN.DISCARD_RECORDING}
+                </Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
+      )}
     </View>
   );
 };
@@ -112,12 +175,22 @@ const RecordingScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
     backgroundColor: '#fff',
   },
+  backButton: {
+    position: 'absolute',
+    top: 20,
+    left: 20,
+    padding: 10,
+    zIndex: 1,
+  },
+  backButtonText: {
+    fontSize: 24,
+  },
   timerContainer: {
-    marginBottom: 50,
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   timer: {
     fontSize: 48,
@@ -130,25 +203,54 @@ const styles = StyleSheet.create({
     backgroundColor: '#ff4444',
     justifyContent: 'center',
     alignItems: 'center',
+    alignSelf: 'center',
     marginBottom: 20,
   },
   recordingButton: {
     backgroundColor: '#ff0000',
   },
-  recordButtonInner: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#fff',
-  },
-  recordingButtonInner: {
-    width: 30,
-    height: 30,
-    borderRadius: 5,
+  buttonIcon: {
+    fontSize: 40,
   },
   instructions: {
     fontSize: 16,
     color: '#666',
+    textAlign: 'center',
+    marginBottom: 30,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    padding: 20,
+    paddingBottom: 40,
+  },
+  actionButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 30,
+    borderRadius: 25,
+    minWidth: 140,
+    alignItems: 'center',
+  },
+  saveButton: {
+    backgroundColor: '#4CAF50',
+  },
+  discardButton: {
+    backgroundColor: '#f44336',
+  },
+  actionButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  processingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  processingText: {
+    marginTop: 10,
+    color: '#666',
+    fontSize: 16,
   },
 });
 
