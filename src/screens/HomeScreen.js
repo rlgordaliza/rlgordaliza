@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { HOME_SCREEN, RECORDING_BUTTONS } from '../constants/uiStrings';
+import { HOME_SCREEN, RECORDING_BUTTONS, DETAIL_SCREEN } from '../constants/uiStrings';
 
 const HomeScreen = ({ navigation }) => {
   const [recordings, setRecordings] = useState([]);
@@ -74,9 +74,14 @@ const HomeScreen = ({ navigation }) => {
         onPress={() => navigation.navigate('Detail', { recording: item })}
       >
         <View style={styles.recordingInfo}>
-          <Text style={styles.recordingDate}>
-            {new Date(item.timestamp).toLocaleString()}
-          </Text>
+          <View style={styles.recordingTextContainer}>
+            <Text style={styles.recordingTitle}>
+              {item.title || DETAIL_SCREEN.DEFAULT_TITLE}
+            </Text>
+            <Text style={styles.recordingDate}>
+              {new Date(item.timestamp).toLocaleString()}
+            </Text>
+          </View>
           {renderBadges(item)}
         </View>
       </TouchableOpacity>
@@ -149,8 +154,18 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  recordingDate: {
+  recordingTextContainer: {
+    flex: 1,
+    marginRight: 10,
+  },
+  recordingTitle: {
     fontSize: 16,
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  recordingDate: {
+    fontSize: 14,
+    color: '#666',
   },
   badgeContainer: {
     flexDirection: 'row',

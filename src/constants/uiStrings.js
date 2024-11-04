@@ -10,19 +10,6 @@ export const RECORDING_SCREEN = {
   SAVE_ERROR: 'Error al guardar la grabación'
 };
 
-export const PROCESSING_SCREEN = {
-  TITLE: 'Procesar Grabación',
-  TRANSCRIBING: 'Transcribiendo audio...',
-  GENERATING_SUMMARY: 'Generando resumen...',
-  CREATING_MINUTES: 'Creando acta de reunión...',
-  PERFORMING_ANALYSIS: 'Realizando análisis...',
-  OPTIONS: {
-    SUMMARY: 'Generar Resumen 📝',
-    MINUTES: 'Crear Acta de Reunión 📋',
-    ANALYSIS: 'Desarrollar Análisis 📊'
-  }
-};
-
 export const HOME_SCREEN = {
   TITLE: 'Mis Grabaciones',
   NO_RECORDINGS: 'No hay grabaciones',
@@ -34,20 +21,28 @@ export const HOME_SCREEN = {
 };
 
 export const DETAIL_SCREEN = {
-  TITLE: 'Detalles de la Grabación',
+  TITLE: 'Grabación',
   TRANSCRIPTION: 'Transcripción',
   SUMMARY: 'Resumen',
   MINUTES: 'Acta de Reunión',
   ANALYSIS: 'Análisis',
+  TRANSLATION: 'Traducción',
   NO_TRANSCRIPTION: 'No hay transcripción disponible',
   NO_SUMMARY: 'No hay resumen disponible',
   NO_MINUTES: 'No hay acta disponible',
   NO_ANALYSIS: 'No hay análisis disponible',
+  NO_TRANSLATION: 'No hay traducción disponible',
   GENERATE: 'Generar',
+  TRANSLATE: 'Traducir',
+  SELECT_LANGUAGE: 'Seleccionar idioma',
   PROCESSING: 'Procesando...',
   BACK: 'Volver',
   DATE: 'Fecha',
-  TIME: 'Hora'
+  TIME: 'Hora',
+  DEFAULT_TITLE: 'Sin título',
+  EDIT_TITLE: 'Editar título',
+  SAVE_TITLE: 'Guardar título',
+  TITLE_PLACEHOLDER: 'Introduce un título para la grabación'
 };
 
 export const RECORDING_BUTTONS = {
@@ -55,12 +50,27 @@ export const RECORDING_BUTTONS = {
   STOP: '⏹️',
   DELETE: '🗑️',
   SETTINGS: '⚙️',
-  RECORD: '🎤'
+  RECORD: '🎤',
+  EDIT: '✏️'
 };
 
 export const ERROR_MESSAGES = {
   TRANSCRIPTION_ERROR: 'Error al transcribir el audio',
   CONTENT_GENERATION_ERROR: 'Error al generar el contenido',
+  TRANSLATION_ERROR: 'Error al traducir el texto',
   API_KEY_ERROR: 'Por favor, configura tu clave API de OpenAI en ajustes',
-  LOAD_ERROR: 'Error al cargar los datos de la grabación'
+  LOAD_ERROR: 'Error al cargar los datos de la grabación',
+  SAVE_TITLE_ERROR: 'Error al guardar el título'
+};
+
+export const LANGUAGES = {
+  en: 'Inglés',
+  fr: 'Francés',
+  de: 'Alemán',
+  it: 'Italiano',
+  pt: 'Portugués',
+  ru: 'Ruso',
+  zh: 'Chino',
+  ja: 'Japonés',
+  ko: 'Coreano'
 };

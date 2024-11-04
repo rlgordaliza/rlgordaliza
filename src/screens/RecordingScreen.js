@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { Audio } from 'expo-av';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { transcribeAudio } from '../services/openaiService';
-import { RECORDING_SCREEN, RECORDING_BUTTONS } from '../constants/uiStrings';
+import { transcribeAudio, generateTitle } from '../services/openaiService';
+import { RECORDING_SCREEN, RECORDING_BUTTONS, DETAIL_SCREEN } from '../constants/uiStrings';
 
 const RecordingScreen = ({ navigation }) => {
   const [recording, setRecording] = useState(null);
@@ -13,6 +13,7 @@ const RecordingScreen = ({ navigation }) => {
   const [recordingFinished, setRecordingFinished] = useState(false);
   const [audioUri, setAudioUri] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [processingStep, setProcessingStep] = useState('');
 
   useEffect(() => {
     return () => {
@@ -80,16 +81,23 @@ const RecordingScreen = ({ navigation }) => {
       setIsProcessing(true);
       const timestamp = Date.now();
 
-      // Primero transcribimos el audio
+      // Transcribir el audio
+      setProcessingStep('transcripción');
       const transcription = await transcribeAudio(audioUri);
+
+      // Generar el título basado en la transcripción
+      setProcessingStep('título');
+      const title = await generateTitle(transcription);
 
       const recordingData = {
         timestamp,
         audioUri,
         transcription,
+        title,
         summary: null,
         minutes: null,
-        analysis: null
+        analysis: null,
+        durationMillis: duration * 1000 // Convertimos segundos a milisegundos
       };
 
       await AsyncStorage.setItem(
@@ -98,12 +106,13 @@ const RecordingScreen = ({ navigation }) => {
       );
 
       Alert.alert(RECORDING_SCREEN.SAVE_SUCCESS);
-      navigation.replace('Processing', { timestamp });
+      navigation.replace('Detail', { recording: recordingData });
     } catch (error) {
       console.error('Error al guardar la grabación:', error);
       Alert.alert(RECORDING_SCREEN.SAVE_ERROR, error.message);
     } finally {
       setIsProcessing(false);
+      setProcessingStep('');
     }
   };
 
@@ -115,13 +124,6 @@ const RecordingScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity
-        style={styles.backButton}
-        onPress={() => navigation.goBack()}
-      >
-        <Text style={styles.backButtonText}>←</Text>
-      </TouchableOpacity>
-
       <View style={styles.timerContainer}>
         <Text style={styles.timer}>{formatTime(duration)}</Text>
       </View>
@@ -144,7 +146,11 @@ const RecordingScreen = ({ navigation }) => {
           {isProcessing ? (
             <View style={styles.processingContainer}>
               <ActivityIndicator size="large" color="#4CAF50" />
-              <Text style={styles.processingText}>Transcribiendo audio...</Text>
+              <Text style={styles.processingText}>
+                {processingStep === 'transcripción' 
+                  ? 'Transcribiendo audio...'
+                  : 'Generando título...'}
+              </Text>
             </View>
           ) : (
             <>
@@ -177,15 +183,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
-  backButton: {
-    position: 'absolute',
-    top: 20,
-    left: 20,
-    padding: 10,
-    zIndex: 1,
+  header: {
+    paddingVertical: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
   },
-  backButtonText: {
-    fontSize: 24,
+  title: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    textAlign: 'center',
   },
   timerContainer: {
     flex: 1,

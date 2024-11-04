@@ -53,6 +53,51 @@ export const transcribeAudio = async (audioUri) => {
   }
 };
 
+export const generateTitle = async (transcription) => {
+  try {
+    const apiKey = await getOpenAIKey();
+    
+    const response = await axios.post(
+      'https://api.openai.com/v1/chat/completions',
+      {
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: 'Eres un asistente experto en generar títulos concisos y descriptivos. Genera un título breve (máximo 50 caracteres) que capture la esencia del contenido.'
+          },
+          {
+            role: 'user',
+            content: `Genera un título descriptivo y conciso para esta transcripción:\n\n${transcription}`
+          }
+        ],
+        temperature: 0.7
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    if (!response.data?.choices?.[0]?.message?.content) {
+      throw new Error('La respuesta no tiene el formato esperado');
+    }
+
+    return response.data.choices[0].message.content.trim();
+  } catch (error) {
+    console.error('Error en la generación del título:', error);
+    if (error.response) {
+      const message = error.response.data?.error?.message || 'Error al generar el título';
+      throw new Error(`Error de OpenAI: ${message}`);
+    } else if (error.request) {
+      throw new Error('Error de conexión. Por favor, verifica tu conexión a internet');
+    }
+    throw new Error('Error al generar el título: ' + error.message);
+  }
+};
+
 export const generateContent = async (transcription, type) => {
   try {
     const apiKey = await getOpenAIKey();
@@ -115,5 +160,62 @@ export const generateContent = async (transcription, type) => {
     }
     // Error general
     throw new Error('Error al generar el contenido: ' + error.message);
+  }
+};
+
+export const translateText = async (text, targetLanguage) => {
+  try {
+    const apiKey = await getOpenAIKey();
+
+    const languageNames = {
+      en: 'inglés',
+      fr: 'francés',
+      de: 'alemán',
+      it: 'italiano',
+      pt: 'portugués',
+      ru: 'ruso',
+      zh: 'chino',
+      ja: 'japonés',
+      ko: 'coreano'
+    };
+
+    const response = await axios.post(
+      'https://api.openai.com/v1/chat/completions',
+      {
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: `Eres un traductor experto. Traduce el siguiente texto al ${languageNames[targetLanguage]} manteniendo el significado y el tono original.`
+          },
+          {
+            role: 'user',
+            content: text
+          }
+        ],
+        temperature: 0.3
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    if (!response.data?.choices?.[0]?.message?.content) {
+      throw new Error('La respuesta de traducción no tiene el formato esperado');
+    }
+
+    return response.data.choices[0].message.content;
+  } catch (error) {
+    console.error('Error en la traducción:', error);
+    if (error.response) {
+      const message = error.response.data?.error?.message || 'Error al traducir el texto';
+      throw new Error(`Error de OpenAI: ${message}`);
+    } else if (error.request) {
+      throw new Error('Error de conexión. Por favor, verifica tu conexión a internet');
+    }
+    throw new Error('Error al traducir el texto: ' + error.message);
   }
 };

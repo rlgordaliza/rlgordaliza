@@ -6,7 +6,6 @@ import { StatusBar } from 'expo-status-bar';
 // Import screens
 import HomeScreen from './src/screens/HomeScreen';
 import RecordingScreen from './src/screens/RecordingScreen';
-import ProcessingScreen from './src/screens/ProcessingScreen';
 import DetailScreen from './src/screens/DetailScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 
@@ -42,14 +41,6 @@ export default function App() {
           options={{
             title: 'New Recording',
             headerBackTitle: 'Cancel',
-          }}
-        />
-        <Stack.Screen
-          name="Processing"
-          component={ProcessingScreen}
-          options={{
-            title: 'Process Recording',
-            headerBackVisible: false,
           }}
         />
         <Stack.Screen
