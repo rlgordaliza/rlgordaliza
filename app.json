@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "smartRecorder",
-    "slug": "smartRecorder",
+    "name": "SmartRecorder",
+    "slug": "smart-recorder",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -11,17 +11,34 @@
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "UIBackgroundModes": ["audio"],
+        "NSMicrophoneUsageDescription": "SmartRecorder needs access to your microphone to record audio."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.smartrecorder.app",
+      "permissions": [
+        "RECORD_AUDIO",
+        "FOREGROUND_SERVICE"
+      ]
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    }
+    "plugins": [
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Allow SmartRecorder to access your microphone."
+        }
+      ]
+    ]
   }
 }
